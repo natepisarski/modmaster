@@ -14,19 +14,27 @@ import System.IO
 import Modmaster.Rules
 import Modmaster.Controller
 
+port = 5382
+max_connections = 5
+config = "/etc/modmasterrc"
+
+main = do
+  sock <- socket AF_INET Stream  0
+  setSocketOption sock ReuseAddr 1
+  bindSocket sock (SockAddrInet port iNADDR_ANY)
+  listen sock max_connections
+  control sock
+
+inParens = ((flip) Md.between ('(',')'))
+
+-- | Converts a socket to a file stream
 ts :: (Socket) -> IOMode -> IO Handle
 ts s x = do
   handl <- socketToHandle s x
   hSetBuffering handl NoBuffering
   return handl
 
-main = do
-  sock <- socket AF_INET Stream  0
-  setSocketOption sock ReuseAddr 1
-  bindSocket sock (SockAddrInet 5382 iNADDR_ANY)
-  listen sock 5
-  control sock
-
+-- | Continually accept input from port 5382
 control :: Socket -> IO ()
 control s = do
   putStrLn "Server ready for input"
@@ -34,28 +42,36 @@ control s = do
   handleConnection connection
   control s
 
+-- | Handles the input by reading the rules and executing based upon them.
 handleConnection :: (Socket, SockAddr) -> IO ()
 handleConnection (sock,_) = do
   fsock <- (ts sock ReadWriteMode)
-  c <- fmap (head . lines) $ hGetContents fsock -- should look like module:signal
-  rules <- fmap parse $ getconfig "/etc/modmasterrc" "rules" >>= CIO.filelines 
+  c <- fmap (head . lines) $ hGetContents fsock -- Gets the first line from the socket. Looks like module:signal
+  rules <- fmap parse $ getconfig config "rules" >>= CIO.filelines 
   actOn rules c
 
+-- | After reading the rules, perform the instructions in order from the rules.
 actOn :: [((String,String),[String])] -> String -> IO ()
 actOn x c = do
   let rules = matching x (Ct.before c ':') (Ct.after c ':')
   mapM_ help rules
 
+-- | Keyword of a rule. Move a register into a command line argument.
+fromParse :: String -> IO ()
+fromParse x = do
+  --      (read a register) where  what reg.     which variable in the register
+  mod <- getModuleRegister config (inParens x) (Ct.before (Ct.after x ',') ')')
+  runMod "/etc/modmasterrc" (Cm.fromLast tail (Ct.after x "to(")) mod
+
+-- | Helper function of the actOn function. Decides what to do, based on rules. Works on only one command, must be mapped for full effect.
 help :: String -> IO ()
 help x
-  | x `Ac.contains` "load" = runMod "/etc/modmasterrc" (Md.between x ('(',')')) ""
-  | x `Ac.contains` "from" =
-    do
-      mod <- getModuleRegister "/etc/modmasterrc" ((Md.between x ('(',','))) (Ct.before (Ct.after x ',') ')')
-      runMod "/etc/modmasterrc" (Cm.fromLast tail (Ct.after x "to(")) mod
-  | x `Ac.contains` "unload" = runMod "/etc/modmasterrc" (Md.between x ('(',')')) "quit"
-  |  otherwise = return ()
+  | x `Ac.contains` "load" = runMod config (inParens x) "" -- Load a process
+  | x `Ac.contains` "from" = fromParse x
+  | x `Ac.contains` "unload" = runMod "/etc/modmasterrc" (inParens x) "quit"
+  |  otherwise = return () 
 
+-- | Finds the rule equivelant to the fired module and signal, returning the rules.
 matching :: [((String,String),[String])] -> String -> String -> [String]
 matching [] mod sig = []
 matching (((a,b),c):xs) mod sig
