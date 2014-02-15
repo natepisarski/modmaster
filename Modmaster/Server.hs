@@ -37,7 +37,7 @@ ts s x = do
 -- | Continually accept input from port 5382
 control :: Socket -> IO ()
 control s = do
-  putStrLn "Server ready for input"
+  makeSpaces ["Listening on port", show port]
   connection <- accept s
   handleConnection connection
   control s
@@ -60,7 +60,8 @@ actOn x c = do
 fromParse :: String -> IO ()
 fromParse x = do
   --      (read a register) where  what reg.     which variable in the register
-  mod <- getModuleRegister config (inParens x) (Ct.before (Ct.after x ',') ')')
+  mod <- getModuleRegister config (Md.between x ('(',','))  (Ct.before (Ct.after x ',') ')')
+  putStrLn $ mod++"!"
   runMod "/etc/modmasterrc" (Cm.fromLast tail (Ct.after x "to(")) mod
 
 -- | Helper function of the actOn function. Decides what to do, based on rules. Works on only one command, must be mapped for full effect.
@@ -77,9 +78,3 @@ matching [] mod sig = []
 matching (((a,b),c):xs) mod sig
   | and [a == mod, b == sig]=  c
   | otherwise = matching xs mod sig
-
--- What still needs to be done
--- > Library for sending information to ports. "emit :: String -> IO ()" in a COOKBOOK function.
--- > Better client-side integration with registers. writeRegister :: String -> String -> IO ()
--- > git
--- > I can't believe this shit works. Look at the line number.
