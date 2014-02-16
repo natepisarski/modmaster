@@ -2,9 +2,9 @@
 -- documentation, see http://haskell.org/cabal/users-guide/
 
 name:                modmaster
-version:             0.1.0.0
+version:             0.1.2.0
 synopsis:            A binary module management server
--- description:         
+description: 	     Modmaster is a relatively stable plugin system exemplifying the Observer design pattern. Binary modules can raise flags and set registers over sockets, and the server will handle them.        
 license:             BSD3
 license-file:        LICENSE
 author:              Nate Pisarski
@@ -16,5 +16,5 @@ cabal-version:       >=1.8
 
 executable modmaster
    main-is: Main.hs
-  other-modules: Modmaster.Rules, Modmaster.Controller, Modmaster.Rules, Modmaster.Server      
+  other-modules: Modmaster.Rules, Modmaster.Controller, Modmaster.Rules, Modmaster.Server, Modmaster.Client      
   build-depends:       base ==4.6.*, process, directory, cookbook, network
