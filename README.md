@@ -1,17 +1,23 @@
-#modmaster
-Modmaster is a module system for linux written in Haskell. It reads a rules file, which specify which actions to take when a *signal* is emitted from a proram. Signals are strings over port 5382 with the syntax module:signal. One of any module can pick the signal up and respond to it, and even fire their own signals as a result of it.
+# modmaster
+Modmaster is an early version of [Kast](https://github.com/natepisarski/kast), written in Haskell. It is essentially a queue with workers, but each worker is a separate binary program on the system.
+
+You define rules ahead of time, which tells it how to react to **signals**. **Signals** can be dispatched from any binary program over port `5382`, in the format `module:signal`.
+
+Your listener can do anything with the `signal`, including firing its own `signals`, allowing you to build a network of event handlers.
 
 # Features
 ### Modal server executable
 The Modmaster server is the modmaster client program as well. To run a modmaster module, just use this syntax on a module:
-	modmaster [file]
-### Whitespace-independant parsing of rules file
-Do you have some whacky way of indenting your rules? No problem, modmaster can adapt.
-### Highly configurable
-Modmaster has multiple configuration files which control nearly every aspect of its behavior. In later versions, every hardcoded aspect of the server will be changable through a configuration file.
 
-# How can I make a module?
-Any executable is a module. As long as the binary can communicate on port 5382 correctly (or use the Client.hs library and just call **emit**), it can be a modmaster plugin.
+```bash
+modmaster [file]
+```
+
+### Configuration
+Modmaster has multiple configuration files, which let you control every aspect of its behavior (almost).
+
+# Creating a module
+Any executable can be a module. It needs to be able to communicate on port `5382`, or it can use `emit` from the `Client.hs` library.
 
 # Configuration
 Here is a small example of a configuration file, currently set to be */etc/modmasterrc*
@@ -20,18 +26,19 @@ Here is a small example of a configuration file, currently set to be */etc/modma
 	registers:/home/joe/Registers/
 	rules:/home/joe/rules
 
-The modules directory is a place with binary modmaster modules. This can be set to /usr/bin/ if you would like.
+The `modules` directory is a place with binary modmaster modules. This can be set to `/usr/bin/` if you would like.
 
-The registers directory is where modmaster stores its registers. Registers are logs for variables in modules, so that they can be shared in-between each other in from(a,b) to(c) blocks within the rules.
+The `registers` directory is where modmaster stores its `registers`. Registers are just shared memory, so that data can be shared module-to-module in `from(a,b) to (c)` blocks in rules.
 
-The rules file dictates how the modules work in unison. Here is an example rules file showcasing all of the possible features present:
+The `rules` file dictates how the modules work in unison. Here is an example rules file showcasing all of the possible features present:
 
+```
+// hworld, espion, echo are all binaries
 	when(hworld) emits hworld{ (* Comment *)
 	load(espion);
 	from(hworld,hworld) to(echo);
 	}
-
-The final semicolon on the last line is optional, as is the "emits" word, all whitespace, newlines, and tabs, and obviously the comment.
+```
 
 # License
 Copyright (c) 2014, Nate Pisarski
@@ -64,9 +71,3 @@ DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
 THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
-
-# TODO
-* Make registers WAY easier to use, and less fragile.
-* Add better logging measures
-* Modify Cookbook to get the cluttery functions out of the code
-* Make more platform-independant
